@@ -1,8 +1,17 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Paper, Typography, Box, Stack } from '@mui/material';
-import HighchartsWrapper from './HighchartsWrapper';
+import dynamic from 'next/dynamic';
+import { Paper, Typography, Box, Stack, CircularProgress } from '@mui/material';
+
+const HighchartsChart = dynamic(() => import('./HighchartsChart'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 370 }}>
+      <CircularProgress size={32} />
+    </div>
+  ),
+});
 import {
   RAW_DATA,
   TIME_POINTS,
@@ -395,7 +404,7 @@ export default function ProgressionChart({
         />
       </Stack>
 
-      <HighchartsWrapper options={options} />
+      <HighchartsChart options={options as unknown as import('highcharts').Options} />
 
       <Typography sx={{ fontSize: 12, color: '#aaa', mt: 1 }}>
         {selectedTwin

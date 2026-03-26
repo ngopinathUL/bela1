@@ -1,48 +1,45 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { Box, CircularProgress } from '@mui/material';
 
 interface HighchartsWrapperProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  options: any;
+  constructOptions: (Highcharts: any) => any;
 }
 
-export default function HighchartsWrapper({ options }: HighchartsWrapperProps) {
+function HighchartsWrapperInner({ constructOptions }: HighchartsWrapperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartRef = useRef<any>(null);
-  const [loaded, setLoaded] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const highchartsRef = useRef<any>(null);
+  const [hc, setHc] = useState<any>(null);
 
+  // Load Highcharts once
   useEffect(() => {
     let cancelled = false;
-    async function loadHighcharts() {
-      const hcModule = await import('highcharts');
-      const Highcharts = hcModule.default || hcModule;
-      const moreModule = await import('highcharts/highcharts-more');
+    (async () => {
+      const mod = await import('highcharts');
+      const Highcharts = mod.default || mod;
+      const moreMod = await import('highcharts/highcharts-more');
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const HighchartsMore: any = moreModule.default || moreModule;
-      HighchartsMore(Highcharts);
-      if (!cancelled) {
-        highchartsRef.current = Highcharts;
-        setLoaded(true);
-      }
-    }
-    loadHighcharts();
+      const more: any = moreMod.default || moreMod;
+      more(Highcharts);
+      if (!cancelled) setHc(Highcharts);
+    })();
     return () => { cancelled = true; };
   }, []);
 
+  // Create / update chart
   useEffect(() => {
-    if (!loaded || !containerRef.current || !highchartsRef.current) return;
-    const Highcharts = highchartsRef.current;
+    if (!hc || !containerRef.current) return;
+
+    const opts = constructOptions(hc);
 
     if (chartRef.current) {
       chartRef.current.destroy();
     }
-
-    chartRef.current = Highcharts.chart(containerRef.current, options);
+    chartRef.current = hc.chart(containerRef.current, opts);
 
     return () => {
       if (chartRef.current) {
@@ -50,9 +47,9 @@ export default function HighchartsWrapper({ options }: HighchartsWrapperProps) {
         chartRef.current = null;
       }
     };
-  }, [loaded, options]);
+  }, [hc, constructOptions]);
 
-  if (!loaded) {
+  if (!hc) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 370 }}>
         <CircularProgress size={32} />
@@ -60,5 +57,7 @@ export default function HighchartsWrapper({ options }: HighchartsWrapperProps) {
     );
   }
 
-  return <div ref={containerRef} />;
+  return <div ref={containerRef} style={{ width: '100%', minHeight: 370 }} />;
 }
+
+export default memo(HighchartsWrapperInner);
