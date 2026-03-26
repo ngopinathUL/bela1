@@ -169,9 +169,12 @@ export default function InsightsPanel({
         minWidth: 320,
         borderLeft: '1px solid #E8E5E0',
         bgcolor: '#fff',
-        height: '100%',
         overflow: 'auto',
         p: 2.5,
+        position: 'sticky',
+        top: 0,
+        alignSelf: 'flex-start',
+        maxHeight: '100vh',
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>

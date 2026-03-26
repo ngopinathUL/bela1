@@ -75,9 +75,9 @@ export default function StudyPage() {
         </Box>
 
         {/* Study header + content */}
-        <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
           {/* Main column */}
-          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
             {/* Study header */}
             <Box sx={{ px: 4, pt: 3, pb: 0, bgcolor: '#fff' }}>
               <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
@@ -130,8 +130,8 @@ export default function StudyPage() {
               </Tabs>
             </Box>
 
-            {/* Scrollable content */}
-            <Box sx={{ flex: 1, overflow: 'auto', px: 4, py: 3 }}>
+            {/* Content */}
+            <Box sx={{ px: 4, py: 3 }}>
               {activeTab === 0 && (
                 <DiseaseProgressionExplorer
                   lockedEndpoint={lockedEndpoint}
