@@ -21,7 +21,7 @@ import {
 import { charts } from '../theme/colors';
 
 interface BaselineSummaryTableProps {
-  strataFilter: string;
+  selectedStrata: string[];
 }
 
 interface EndpointStats {
@@ -84,15 +84,14 @@ const headerCellSx = {
 } as const;
 
 export default function BaselineSummaryTable({
-  strataFilter,
+  selectedStrata,
 }: BaselineSummaryTableProps) {
   const filteredIds = useMemo(() => {
-    if (strataFilter === 'All') return SUBJECT_IDS;
     return SUBJECT_IDS.filter((id) => {
       const row = RAW_DATA.find((d) => d.subject_id === id);
-      return row && row.strata === strataFilter;
+      return row && selectedStrata.includes(row.strata);
     });
-  }, [strataFilter]);
+  }, [selectedStrata]);
 
   const stats = useMemo(() => {
     const result: Record<string, EndpointStats> = {};
@@ -134,7 +133,7 @@ export default function BaselineSummaryTable({
         }}
       >
         First observed timepoint (Day {TIME_POINTS[0]}) &mdash; {filteredIds.length} subjects
-        {strataFilter !== 'All' ? ` (${strataFilter})` : ''}
+        {' '}({selectedStrata.join(', ')})
       </Typography>
       <TableContainer>
         <Table size="small">
@@ -142,7 +141,7 @@ export default function BaselineSummaryTable({
             <TableRow>
               <TableCell sx={headerCellSx}>Endpoint</TableCell>
               <TableCell sx={headerCellSx} align="right">N</TableCell>
-              <TableCell sx={headerCellSx} align="right">Mean &plusmn; SD</TableCell>
+              <TableCell sx={headerCellSx} align="right">Mean ± SD</TableCell>
               <TableCell sx={headerCellSx} align="right">Median</TableCell>
               <TableCell sx={headerCellSx} align="right">Min</TableCell>
               <TableCell sx={headerCellSx} align="right">Max</TableCell>
@@ -160,7 +159,7 @@ export default function BaselineSummaryTable({
                     {s.n}
                   </TableCell>
                   <TableCell sx={cellSx} align="right">
-                    {fmt(s.mean)} &plusmn; {fmt(s.sd)}
+                    {fmt(s.mean)} ± {fmt(s.sd)}
                   </TableCell>
                   <TableCell sx={cellSx} align="right">
                     {fmt(s.median)}

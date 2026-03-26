@@ -24,14 +24,19 @@ import {
   POPULATION_BAND_COLOR,
   SELECTED_COLOR,
   SELECTED_BAND_COLOR,
-  TWIN_LINE_COLOR,
   TWIN_LINE_FADED,
+  STRATA_COLORS,
 } from '../theme/colors';
 
 interface ProgressionChartProps {
   endpoint: string;
   subjectIds: string[];
-  strataFilter: string;
+  selectedStrata: string[];
+}
+
+function getSubjectStrata(subjectId: string): string {
+  const row = RAW_DATA.find((d) => d.subject_id === subjectId);
+  return row?.strata || '';
 }
 
 function computeStats(
@@ -78,7 +83,7 @@ function computeStats(
   return { twinSeries, popMean, popBand };
 }
 
-function LegendItem({
+function LegendSwatch({
   color,
   fill,
   label,
@@ -92,13 +97,7 @@ function LegendItem({
   return (
     <Stack direction="row" alignItems="center" spacing={0.5}>
       {isDash ? (
-        <Box
-          sx={{
-            width: 18,
-            height: 0,
-            borderTop: `2px solid ${color}`,
-          }}
-        />
+        <Box sx={{ width: 18, height: 0, borderTop: `2px solid ${color}` }} />
       ) : (
         <Box
           sx={{
@@ -111,11 +110,7 @@ function LegendItem({
         />
       )}
       <Typography
-        sx={{
-          fontSize: '12px',
-          color: '#555',
-          fontFamily: 'Roboto Flex, sans-serif',
-        }}
+        sx={{ fontSize: '12px', color: '#555', fontFamily: 'Roboto Flex, sans-serif' }}
       >
         {label}
       </Typography>
@@ -126,17 +121,16 @@ function LegendItem({
 export default function ProgressionChart({
   endpoint,
   subjectIds,
-  strataFilter,
+  selectedStrata,
 }: ProgressionChartProps) {
   const [selectedTwin, setSelectedTwin] = useState<string | null>(null);
 
   const filteredIds = useMemo(() => {
-    if (strataFilter === 'All') return subjectIds;
     return subjectIds.filter((id) => {
-      const row = RAW_DATA.find((d) => d.subject_id === id);
-      return row && row.strata === strataFilter;
+      const strata = getSubjectStrata(id);
+      return selectedStrata.includes(strata);
     });
-  }, [subjectIds, strataFilter]);
+  }, [subjectIds, selectedStrata]);
 
   const { twinSeries, popMean, popBand } = useMemo(
     () => computeStats(RAW_DATA, endpoint, filteredIds),
@@ -193,10 +187,13 @@ export default function ProgressionChart({
       });
     }
 
-    // Individual twin lines
+    // Individual twin lines — colored by strata
     filteredIds.forEach((id) => {
       const isSelected = selectedTwin === id;
       const hasSel = selectedTwin !== null;
+      const strata = getSubjectStrata(id);
+      const strataColor = STRATA_COLORS[strata]?.line || '#C4B5A8';
+
       series.push({
         type: 'line',
         name: id,
@@ -205,8 +202,8 @@ export default function ProgressionChart({
           ? SELECTED_COLOR
           : hasSel
             ? TWIN_LINE_FADED
-            : TWIN_LINE_COLOR,
-        lineWidth: isSelected ? 2.5 : 1.2,
+            : strataColor,
+        lineWidth: isSelected ? 2.5 : 1.5,
         marker: {
           enabled: isSelected,
           radius: isSelected ? 5 : 0,
@@ -222,6 +219,7 @@ export default function ProgressionChart({
         },
         zIndex: isSelected ? 4 : 2,
         cursor: 'pointer',
+        custom: { strata },
         point: {
           events: {
             click: function () {
@@ -258,7 +256,7 @@ export default function ProgressionChart({
 
     return {
       chart: {
-        height: 370,
+        height: 420,
         backgroundColor: charts.backgroundColorInCard,
         style: { fontFamily: 'Roboto Flex, sans-serif' },
         events: {
@@ -334,10 +332,13 @@ export default function ProgressionChart({
           fontFamily: 'Roboto Flex, sans-serif',
         },
         formatter: function () {
-          const point = this as unknown as { x: number; y: number; series: { name: string } };
+          const point = this as unknown as { x: number; y: number; series: { name: string; options: { custom?: { strata?: string } } } };
           const day = point.x;
           const label = dayToMonthLabel(day);
           const popPt = popMean.find((p) => p[0] === day);
+          const strata = point.series.options.custom?.strata;
+          const strataColor = strata ? STRATA_COLORS[strata]?.line : SELECTED_COLOR;
+
           let html = `<div style="border-left: 8px solid #A98EF9; padding: 8px 12px;">`;
           html += `<div style="font-weight:600;color:#262626;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #E8E8E8">${label}</div>`;
           if (popPt) {
@@ -347,8 +348,8 @@ export default function ProgressionChart({
           }
           if (point.series.name.startsWith('SUBJ-')) {
             html += `<div style="display:flex;align-items:center;gap:6px">`;
-            html += `<span style="width:10px;height:10px;background:${SELECTED_BAND_COLOR};border:2px solid ${SELECTED_COLOR};display:inline-block"></span>`;
-            html += `${point.series.name}: ${point.y.toFixed(2)}</div>`;
+            html += `<span style="width:10px;height:10px;background:${STRATA_COLORS[strata || '']?.band || SELECTED_BAND_COLOR};border:2px solid ${strataColor};display:inline-block"></span>`;
+            html += `${point.series.name}${strata ? ` (${strata})` : ''}: ${point.y.toFixed(2)}</div>`;
           }
           html += `</div>`;
           return html;
@@ -378,25 +379,33 @@ export default function ProgressionChart({
         {filteredIds.length} twins &mdash; Disease progression
       </Typography>
 
+      {/* Legend */}
       <Stack direction="row" spacing={2.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
-        <LegendItem
+        <LegendSwatch
           color={POPULATION_COLOR}
           fill={POPULATION_BAND_COLOR}
           label="Population ± SD"
         />
-        <LegendItem color={TWIN_LINE_COLOR} isDash label="Individual twin" />
-        <LegendItem
+        <LegendSwatch
           color={SELECTED_COLOR}
           fill={SELECTED_BAND_COLOR}
           label="Selected ± SD"
         />
+        {selectedStrata.map((s) => (
+          <LegendSwatch
+            key={s}
+            color={STRATA_COLORS[s]?.line || '#999'}
+            isDash
+            label={s}
+          />
+        ))}
       </Stack>
 
       <HighchartsChart options={options as unknown as import('highcharts').Options} />
 
       <Typography sx={{ fontSize: 12, color: '#aaa', mt: 1 }}>
         {selectedTwin
-          ? `${selectedTwin} \u2014 showing individual prediction band`
+          ? `${selectedTwin} (${getSubjectStrata(selectedTwin)}) \u2014 showing individual prediction band`
           : 'Hover a twin line to highlight'}
       </Typography>
     </Paper>

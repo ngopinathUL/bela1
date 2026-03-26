@@ -34,3 +34,10 @@ export const POPULATION_BAND_COLOR = 'rgba(40, 2, 161, 0.12)';
 export const SELECTED_BAND_COLOR = 'rgba(204, 55, 0, 0.15)';
 export const TWIN_LINE_COLOR = '#C4B5A8';
 export const TWIN_LINE_FADED = 'rgba(200, 200, 200, 0.35)';
+
+// Strata-specific colors (line, band)
+export const STRATA_COLORS: Record<string, { line: string; band: string; faded: string }> = {
+  'Stage I':   { line: '#9A56FB', band: 'rgba(154, 86, 251, 0.18)', faded: 'rgba(154, 86, 251, 0.25)' },
+  'Stage II':  { line: '#4C77FF', band: 'rgba(76, 119, 255, 0.18)', faded: 'rgba(76, 119, 255, 0.25)' },
+  'Stage III': { line: '#fc7233', band: 'rgba(252, 114, 51, 0.18)', faded: 'rgba(252, 114, 51, 0.25)' },
+};

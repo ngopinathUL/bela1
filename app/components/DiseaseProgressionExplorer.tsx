@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -10,6 +10,10 @@ import {
   Select,
   MenuItem,
   SelectChangeEvent,
+  Checkbox,
+  ListItemText,
+  Chip,
+  OutlinedInput,
 } from '@mui/material';
 import BaselineSummaryTable from './BaselineSummaryTable';
 import ProgressionChart from './ProgressionChart';
@@ -18,13 +22,20 @@ import {
   SUBJECT_IDS,
   STRATA,
 } from '../data/digitalTwinData';
-import { charts } from '../theme/colors';
+import { charts, STRATA_COLORS } from '../theme/colors';
 
 export default function DiseaseProgressionExplorer() {
   const [endpoint, setEndpoint] = useState<string>('cuhdrs');
-  const [strataFilter, setStrataFilter] = useState<string>('All');
+  const [selectedStrata, setSelectedStrata] = useState<string[]>([...STRATA]);
 
-  const strataOptions = useMemo(() => ['All', ...STRATA], []);
+  const handleStrataChange = (event: SelectChangeEvent<string[]>) => {
+    const value = event.target.value;
+    const next = typeof value === 'string' ? value.split(',') : value;
+    // Require at least 1 selected
+    if (next.length > 0) {
+      setSelectedStrata(next);
+    }
+  };
 
   return (
     <Box
@@ -51,7 +62,7 @@ export default function DiseaseProgressionExplorer() {
         Unlearn &mdash; Digital Twin Visualization
       </Typography>
       <Typography variant="h1" sx={{ mb: 1 }}>
-        Disease progression explorer
+        Digital Twin Explorer
       </Typography>
       <Typography variant="subtitle1" sx={{ maxWidth: 700, mb: 3 }}>
         Population average and individual digital twin trajectories for a
@@ -90,7 +101,7 @@ export default function DiseaseProgressionExplorer() {
           </Select>
         </FormControl>
 
-        <FormControl size="small" sx={{ minWidth: 140 }}>
+        <FormControl size="small" sx={{ minWidth: 220 }}>
           <InputLabel
             sx={{
               fontFamily: 'Roboto Mono, monospace',
@@ -101,9 +112,29 @@ export default function DiseaseProgressionExplorer() {
             Strata
           </InputLabel>
           <Select
-            value={strataFilter}
+            multiple
+            value={selectedStrata}
             label="Strata"
-            onChange={(e: SelectChangeEvent) => setStrataFilter(e.target.value)}
+            onChange={handleStrataChange}
+            input={<OutlinedInput label="Strata" />}
+            renderValue={(selected) => (
+              <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
+                {selected.map((s) => (
+                  <Chip
+                    key={s}
+                    label={s}
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontSize: 12,
+                      bgcolor: STRATA_COLORS[s]?.band || '#eee',
+                      borderLeft: `3px solid ${STRATA_COLORS[s]?.line || '#999'}`,
+                      fontFamily: 'Roboto Flex, sans-serif',
+                    }}
+                  />
+                ))}
+              </Stack>
+            )}
             sx={{
               bgcolor: '#fff',
               borderRadius: 2,
@@ -111,9 +142,17 @@ export default function DiseaseProgressionExplorer() {
               fontSize: 14,
             }}
           >
-            {strataOptions.map((s) => (
+            {STRATA.map((s) => (
               <MenuItem key={s} value={s}>
-                {s}
+                <Checkbox
+                  checked={selectedStrata.includes(s)}
+                  size="small"
+                  sx={{ color: STRATA_COLORS[s]?.line, '&.Mui-checked': { color: STRATA_COLORS[s]?.line } }}
+                />
+                <ListItemText
+                  primary={s}
+                  primaryTypographyProps={{ fontSize: 14, fontFamily: 'Roboto Flex, sans-serif' }}
+                />
               </MenuItem>
             ))}
           </Select>
@@ -121,13 +160,13 @@ export default function DiseaseProgressionExplorer() {
       </Stack>
 
       {/* Baseline Summary Table */}
-      <BaselineSummaryTable strataFilter={strataFilter} />
+      <BaselineSummaryTable selectedStrata={selectedStrata} />
 
       {/* Single chart */}
       <ProgressionChart
         endpoint={endpoint}
         subjectIds={SUBJECT_IDS}
-        strataFilter={strataFilter}
+        selectedStrata={selectedStrata}
       />
 
       {/* Footer */}

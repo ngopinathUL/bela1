@@ -6,7 +6,7 @@ import { muiTheme } from "./theme/muiTheme";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Disease Progression Explorer | Unlearn",
+  title: "Digital Twin Explorer | Unlearn",
   description:
     "Interactive digital twin disease progression visualization for Huntington's Disease endpoints.",
 };
