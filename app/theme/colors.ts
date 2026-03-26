@@ -37,7 +37,7 @@ export const TWIN_LINE_FADED = 'rgba(200, 200, 200, 0.35)';
 
 // Strata-specific colors (line, band)
 export const STRATA_COLORS: Record<string, { line: string; band: string; faded: string }> = {
-  'Stage I':   { line: '#9A56FB', band: 'rgba(154, 86, 251, 0.18)', faded: 'rgba(154, 86, 251, 0.25)' },
+  'Stage I':   { line: '#7B41DA', band: 'rgba(123, 65, 218, 0.18)', faded: 'rgba(123, 65, 218, 0.25)' },
   'Stage II':  { line: '#4C77FF', band: 'rgba(76, 119, 255, 0.18)', faded: 'rgba(76, 119, 255, 0.25)' },
   'Stage III': { line: '#fc7233', band: 'rgba(252, 114, 51, 0.18)', faded: 'rgba(252, 114, 51, 0.25)' },
 };

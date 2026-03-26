@@ -1,5 +1,5 @@
-import DiseaseProgressionExplorer from "./components/DiseaseProgressionExplorer";
+import StudyPage from "./components/StudyPage";
 
 export default function Home() {
-  return <DiseaseProgressionExplorer />;
+  return <StudyPage />;
 }

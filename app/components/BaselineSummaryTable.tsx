@@ -253,7 +253,7 @@ export default function BaselineSummaryTable({
           </Typography>
         </div>
 
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: 'wrap' }}>
+        <Stack direction="row" spacing={3} alignItems="center" sx={{ flexWrap: 'wrap', gap: 2 }}>
           <FormControl size="small" sx={{ minWidth: 220 }}>
             <InputLabel sx={{ fontFamily: 'Roboto Mono, monospace', fontSize: 12, fontWeight: 500 }}>
               Endpoints
