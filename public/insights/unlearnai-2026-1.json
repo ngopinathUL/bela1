@@ -11,10 +11,10 @@
       "status": "approved",
       "title": "Stage III shows accelerated composite decline",
       "summary": "The Stage III twin (SUBJ-006) exhibits the steepest cUHDRS decline rate at -0.57/quarter, compared to -0.40/quarter in Stage I and -0.43/quarter in Stage II.",
-      "detail": "cUHDRS integrates TFC, TMS, SDMT, and Stroop scores into a single composite. The accelerated trajectory in Stage III suggests that late-stage disease amplifies decline across multiple functional domains simultaneously, consistent with the non-linear progression model described in TRACK-HD. This has implications for enrichment strategies — Stage III subjects may increase signal but also variance.",
+      "detail": "cUHDRS integrates TFC, TMS, SDMT, and Stroop scores into a single composite. The accelerated trajectory in Stage III suggests that late-stage disease amplifies decline across multiple functional domains simultaneously, consistent with the non-linear progression model described in TRACK-HD. This has implications for enrichment strategies — Stage III subjects may increase signal but also variance. All strata are shown so the divergence in slopes is visible.",
       "binding": {
         "endpoint": "cuhdrs",
-        "chart_strata": ["Stage III"],
+        "chart_strata": ["Stage I", "Stage II", "Stage III"],
         "table_strata": ["Stage I", "Stage II", "Stage III"]
       }
     },
@@ -43,7 +43,7 @@
       "detail": "The SDMT captures processing speed and is among the most sensitive cognitive endpoints in HD trials (Stout et al., 2012). The steep decline in Stage II may reflect a critical window where cognitive reserve is depleted. In contrast, Stage III (SUBJ-006) declines 5.8 pts from a lower baseline of 19.6, suggesting a floor effect. This supports SDMT as a primary endpoint in Stage II enriched trials, where the dynamic range and signal-to-noise ratio are most favorable.",
       "binding": {
         "endpoint": "sdmt_correct",
-        "chart_strata": ["Stage II"],
+        "chart_strata": ["Stage I", "Stage II", "Stage III"],
         "table_strata": ["Stage I", "Stage II", "Stage III"]
       }
     },

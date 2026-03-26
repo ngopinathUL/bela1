@@ -147,17 +147,22 @@ export default function ProgressionChart({
     [endpoint, filteredIds, viewMode],
   );
 
-  const selectedBand = useMemo(() => {
-    if (!selectedTwin || !twinSeries[selectedTwin]) return null;
+  // Compute prediction band for every twin (twin value ± half population SD)
+  const twinBands = useMemo(() => {
     const sdByDay: Record<number, number> = {};
     popBand.forEach(([day, lower, upper]) => {
       sdByDay[day] = (upper - lower) / 2;
     });
-    return twinSeries[selectedTwin].map(([day, val]) => {
-      const halfSd = (sdByDay[day] || 0) * 0.5;
-      return [day, val - halfSd, val + halfSd] as [number, number, number];
+    const bands: Record<string, [number, number, number][]> = {};
+    filteredIds.forEach((id) => {
+      if (!twinSeries[id]) return;
+      bands[id] = twinSeries[id].map(([day, val]) => {
+        const halfSd = (sdByDay[day] || 0) * 0.5;
+        return [day, val - halfSd, val + halfSd] as [number, number, number];
+      });
     });
-  }, [selectedTwin, twinSeries, popBand]);
+    return bands;
+  }, [filteredIds, twinSeries, popBand]);
 
   const handlePointClick = useCallback(
     (twinId: string) => {
@@ -185,19 +190,31 @@ export default function ProgressionChart({
       zIndex: 0,
     });
 
-    if (selectedTwin && selectedBand) {
-      series.push({
-        type: 'arearange',
-        name: `${selectedTwin} ± SD`,
-        data: selectedBand,
-        color: SELECTED_BAND_COLOR,
-        fillOpacity: 1,
-        lineWidth: 0,
-        marker: { enabled: false },
-        enableMouseTracking: false,
-        zIndex: 1,
-      });
-    }
+    // Per-twin prediction bands (always visible, colored by strata)
+    filteredIds.forEach((id) => {
+      const isSelected = selectedTwin === id;
+      const hasSel = selectedTwin !== null;
+      const strata = getSubjectStrata(id);
+      const bandColor = isSelected
+        ? SELECTED_BAND_COLOR
+        : hasSel
+          ? 'rgba(200, 200, 200, 0.08)'
+          : (STRATA_COLORS[strata]?.band || 'rgba(196, 181, 168, 0.15)');
+
+      if (twinBands[id]) {
+        series.push({
+          type: 'arearange',
+          name: `${id} band`,
+          data: twinBands[id],
+          color: bandColor,
+          fillOpacity: 1,
+          lineWidth: 0,
+          marker: { enabled: false },
+          enableMouseTracking: false,
+          zIndex: isSelected ? 1 : 0,
+        });
+      }
+    });
 
     filteredIds.forEach((id) => {
       const isSelected = selectedTwin === id;
@@ -315,7 +332,7 @@ export default function ProgressionChart({
       plotOptions: { series: { animation: { duration: 300 }, turboThreshold: 0 } },
       series,
     };
-  }, [filteredIds, twinSeries, popMean, popBand, selectedTwin, selectedBand, handlePointClick, yAxisLabel]);
+  }, [filteredIds, twinSeries, popMean, popBand, selectedTwin, twinBands, handlePointClick, yAxisLabel]);
 
   return (
     <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: charts.backgroundColorInCard }}>
