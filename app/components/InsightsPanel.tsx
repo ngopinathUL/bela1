@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Box, Typography, Stack, Chip, IconButton } from '@mui/material';
 import LightbulbIcon from '@mui/icons-material/LightbulbOutlined';
 import LockIcon from '@mui/icons-material/Lock';
@@ -8,7 +9,9 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ShuffleIcon from '@mui/icons-material/Shuffle';
 import TrackChangesIcon from '@mui/icons-material/TrackChanges';
 import LayersIcon from '@mui/icons-material/Layers';
-import { INSIGHTS, Insight } from '../data/insights';
+import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
+import { Insight, InsightsFile, loadInsights } from '../data/insights';
 import { ENDPOINTS } from '../data/digitalTwinData';
 
 interface InsightsPanelProps {
@@ -18,10 +21,12 @@ interface InsightsPanelProps {
 }
 
 const TAG_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  progression: { label: 'Progression', color: '#7B41DA', icon: <TrendingUpIcon sx={{ fontSize: 14 }} /> },
-  heterogeneity: { label: 'Heterogeneity', color: '#4C77FF', icon: <ShuffleIcon sx={{ fontSize: 14 }} /> },
-  endpoint: { label: 'Endpoint', color: '#fc7233', icon: <TrackChangesIcon sx={{ fontSize: 14 }} /> },
+  progression:    { label: 'Progression',    color: '#7B41DA', icon: <TrendingUpIcon sx={{ fontSize: 14 }} /> },
+  heterogeneity:  { label: 'Heterogeneity',  color: '#4C77FF', icon: <ShuffleIcon sx={{ fontSize: 14 }} /> },
+  endpoint:       { label: 'Endpoint',       color: '#fc7233', icon: <TrackChangesIcon sx={{ fontSize: 14 }} /> },
   stratification: { label: 'Stratification', color: '#05706a', icon: <LayersIcon sx={{ fontSize: 14 }} /> },
+  safety:         { label: 'Safety',         color: '#DC362E', icon: <HealthAndSafetyIcon sx={{ fontSize: 14 }} /> },
+  enrichment:     { label: 'Enrichment',     color: '#948600', icon: <GroupAddIcon sx={{ fontSize: 14 }} /> },
 };
 
 function InsightCard({
@@ -35,7 +40,7 @@ function InsightCard({
   onActivate: () => void;
   onDeactivate: () => void;
 }) {
-  const tag = TAG_CONFIG[insight.tag];
+  const tag = TAG_CONFIG[insight.tag] || TAG_CONFIG.progression;
   const isGreyed = !isActive;
 
   return (
@@ -76,7 +81,7 @@ function InsightCard({
           {isActive && (
             <Chip
               icon={<LockIcon sx={{ fontSize: 11 }} />}
-              label={ENDPOINTS[insight.binding.endpoint]}
+              label={ENDPOINTS[insight.binding.endpoint] || insight.binding.endpoint}
               size="small"
               sx={{
                 height: 20,
@@ -113,7 +118,7 @@ function InsightCard({
         {insight.title}
       </Typography>
 
-      {/* Summary — always visible */}
+      {/* Summary */}
       <Typography
         sx={{
           fontSize: 12,
@@ -126,7 +131,7 @@ function InsightCard({
       </Typography>
 
       {/* Detail — only when active */}
-      {isActive && (
+      {isActive && insight.detail && (
         <Typography
           sx={{
             fontSize: 12,
@@ -165,6 +170,15 @@ export default function InsightsPanel({
   onActivate,
   onDeactivate,
 }: InsightsPanelProps) {
+  const [insights, setInsights] = useState<Insight[]>([]);
+
+  useEffect(() => {
+    fetch('/insights/unlearnai-2026-1.json')
+      .then((r) => r.json())
+      .then((file: InsightsFile) => setInsights(loadInsights(file)))
+      .catch(() => setInsights([]));
+  }, []);
+
   return (
     <Box
       sx={{
@@ -207,7 +221,13 @@ export default function InsightsPanel({
         Select an insight to lock the chart and table to the relevant view.
       </Typography>
 
-      {INSIGHTS.map((insight) => (
+      {insights.length === 0 && (
+        <Typography sx={{ fontSize: 13, color: '#bbb', fontStyle: 'italic', fontFamily: 'Roboto Flex, sans-serif' }}>
+          No insights available for this study.
+        </Typography>
+      )}
+
+      {insights.map((insight) => (
         <InsightCard
           key={insight.id}
           insight={insight}

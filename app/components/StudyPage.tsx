@@ -20,7 +20,7 @@ import StudyOverview from './StudyOverview';
 import DiseaseProgressionExplorer from './DiseaseProgressionExplorer';
 import DocumentsTab from './DocumentsTab';
 import InsightsPanel from './InsightsPanel';
-import { Insight } from '../data/insights';
+import { Insight, normalizeBinding } from '../data/insights';
 
 export default function StudyPage() {
   const [activeTab, setActiveTab] = useState(0);
@@ -30,10 +30,11 @@ export default function StudyPage() {
   const [lockedTableStrata, setLockedTableStrata] = useState<string[] | null>(null);
 
   const handleActivateInsight = useCallback((insight: Insight) => {
+    const b = normalizeBinding(insight.binding);
     setActiveInsightId(insight.id);
-    setLockedEndpoint(insight.binding.endpoint);
-    setLockedChartStrata(insight.binding.chartStrata);
-    setLockedTableStrata(insight.binding.tableStrata);
+    setLockedEndpoint(b.endpoint);
+    setLockedChartStrata(b.chartStrata);
+    setLockedTableStrata(b.tableStrata);
   }, []);
 
   const handleDeactivateInsight = useCallback(() => {
