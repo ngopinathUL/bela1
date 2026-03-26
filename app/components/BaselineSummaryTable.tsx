@@ -20,7 +20,11 @@ import {
   Stack,
   Chip,
   SelectChangeEvent,
+  IconButton,
 } from '@mui/material';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import StrataToggle from './StrataToggle';
 import {
   RAW_DATA,
   TIME_POINTS,
@@ -32,6 +36,7 @@ import { charts, STRATA_COLORS } from '../theme/colors';
 
 interface BaselineSummaryTableProps {
   selectedStrata: string[];
+  onStrataChange: (next: string[]) => void;
 }
 
 interface EndpointStats {
@@ -93,19 +98,94 @@ const headerCellSx = {
   bgcolor: '#FAF9F7',
 } as const;
 
-const strataHeaderSx = {
-  ...cellSx,
-  fontWeight: 700,
-  fontSize: '13px',
-  bgcolor: '#FAF9F7',
-  borderBottom: '2px solid #EEEBE4',
-  py: 1.2,
-} as const;
-
 const fmt = (v: number) => v.toFixed(2);
+
+function CollapsibleSection({
+  group,
+  isOverall,
+  strataColor,
+  groupStats,
+  selectedEndpoints,
+  defaultOpen,
+}: {
+  group: string;
+  isOverall: boolean;
+  strataColor?: string;
+  groupStats: Record<string, EndpointStats>;
+  selectedEndpoints: string[];
+  defaultOpen: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const sampleN = groupStats[selectedEndpoints[0]]?.n;
+
+  return (
+    <>
+      <TableRow
+        sx={{ cursor: 'pointer', '&:hover': { bgcolor: '#FAFAF8' } }}
+        onClick={() => setOpen(!open)}
+      >
+        <TableCell
+          colSpan={6}
+          sx={{
+            fontWeight: 700,
+            fontSize: '13px',
+            fontFamily: 'Roboto Mono, monospace',
+            color: '#262626',
+            bgcolor: '#FAF9F7',
+            borderBottom: open ? '2px solid #EEEBE4' : '1px solid #EEEBE4',
+            borderLeft: isOverall ? 'none' : `4px solid ${strataColor || '#999'}`,
+            py: 1.2,
+          }}
+        >
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <IconButton size="small" sx={{ p: 0 }}>
+              {open ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+            </IconButton>
+            <span>
+              {group}
+              {sampleN !== undefined && (
+                <Typography
+                  component="span"
+                  sx={{ fontSize: 12, color: '#888', ml: 1, fontWeight: 400, fontFamily: 'Roboto Mono, monospace' }}
+                >
+                  (n={sampleN})
+                </Typography>
+              )}
+            </span>
+          </Stack>
+        </TableCell>
+      </TableRow>
+      {open &&
+        selectedEndpoints.map((key) => {
+          const s = groupStats[key];
+          if (!s) return null;
+          return (
+            <TableRow key={`${group}-${key}`} hover>
+              <TableCell
+                sx={{
+                  ...cellSx,
+                  fontWeight: 500,
+                  pl: isOverall ? 5 : 6,
+                  borderLeft: isOverall ? 'none' : `4px solid ${strataColor || '#999'}`,
+                }}
+              >
+                {ENDPOINTS[key]}
+              </TableCell>
+              <TableCell sx={cellSx} align="right">{s.n}</TableCell>
+              <TableCell sx={cellSx} align="right">{fmt(s.mean)} ± {fmt(s.sd)}</TableCell>
+              <TableCell sx={cellSx} align="right">{fmt(s.median)}</TableCell>
+              <TableCell sx={cellSx} align="right">{fmt(s.min)}</TableCell>
+              <TableCell sx={cellSx} align="right">{fmt(s.max)}</TableCell>
+            </TableRow>
+          );
+        })}
+    </>
+  );
+}
 
 export default function BaselineSummaryTable({
   selectedStrata,
+  onStrataChange,
 }: BaselineSummaryTableProps) {
   const allEndpointKeys = Object.keys(ENDPOINTS);
   const [selectedEndpoints, setSelectedEndpoints] = useState<string[]>(allEndpointKeys);
@@ -116,11 +196,9 @@ export default function BaselineSummaryTable({
     if (next.length > 0) setSelectedEndpoints(next);
   };
 
-  // Build stats per strata per endpoint
   const statsByStrata = useMemo(() => {
     const result: Record<string, Record<string, EndpointStats>> = {};
 
-    // "Overall" across all selected strata
     const overallIds = SUBJECT_IDS.filter((id) => {
       const row = RAW_DATA.find((d) => d.subject_id === id);
       return row && selectedStrata.includes(row.strata);
@@ -130,7 +208,6 @@ export default function BaselineSummaryTable({
       result['Overall'][key] = computeBaselineStats(RAW_DATA, key, overallIds);
     }
 
-    // Per strata
     for (const strata of selectedStrata) {
       const ids = SUBJECT_IDS.filter((id) => {
         const row = RAW_DATA.find((d) => d.subject_id === id);
@@ -156,14 +233,13 @@ export default function BaselineSummaryTable({
   const totalN = statsByStrata['Overall']?.[selectedEndpoints[0]]?.n ?? 0;
 
   return (
-    <Paper
-      elevation={0}
-      sx={{ mb: 3, bgcolor: charts.backgroundColorInCard }}
-    >
+    <Paper elevation={0} sx={{ mb: 3, bgcolor: charts.backgroundColorInCard }}>
+      {/* Header */}
       <Stack
-        direction="row"
-        alignItems="flex-end"
+        direction={{ xs: 'column', md: 'row' }}
+        alignItems={{ xs: 'flex-start', md: 'center' }}
         justifyContent="space-between"
+        spacing={2}
         sx={{ px: 3, pt: 3, pb: 1 }}
       >
         <div>
@@ -171,60 +247,50 @@ export default function BaselineSummaryTable({
             Baseline summary statistics
           </Typography>
           <Typography
-            sx={{
-              fontSize: 13,
-              color: '#888',
-              pt: 0.5,
-              fontFamily: 'Roboto Flex, sans-serif',
-            }}
+            sx={{ fontSize: 13, color: '#888', pt: 0.5, fontFamily: 'Roboto Flex, sans-serif' }}
           >
             First observed timepoint (Day {TIME_POINTS[0]}) &mdash; {totalN} subjects
           </Typography>
         </div>
 
-        {/* Table endpoint multi-select */}
-        <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel
-            sx={{ fontFamily: 'Roboto Mono, monospace', fontSize: 12, fontWeight: 500 }}
-          >
-            Table endpoints
-          </InputLabel>
-          <Select
-            multiple
-            value={selectedEndpoints}
-            label="Table endpoints"
-            onChange={handleEndpointChange}
-            input={<OutlinedInput label="Table endpoints" />}
-            renderValue={(selected) => (
-              <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
-                {selected.map((k) => (
-                  <Chip
-                    key={k}
-                    label={ENDPOINTS[k]}
-                    size="small"
-                    sx={{ height: 20, fontSize: 11, fontFamily: 'Roboto Flex, sans-serif' }}
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: 'wrap' }}>
+          <FormControl size="small" sx={{ minWidth: 220 }}>
+            <InputLabel sx={{ fontFamily: 'Roboto Mono, monospace', fontSize: 12, fontWeight: 500 }}>
+              Endpoints
+            </InputLabel>
+            <Select
+              multiple
+              value={selectedEndpoints}
+              label="Endpoints"
+              onChange={handleEndpointChange}
+              input={<OutlinedInput label="Endpoints" />}
+              renderValue={(selected) => (
+                <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
+                  {selected.map((k) => (
+                    <Chip
+                      key={k}
+                      label={ENDPOINTS[k]}
+                      size="small"
+                      sx={{ height: 20, fontSize: 11, fontFamily: 'Roboto Flex, sans-serif' }}
+                    />
+                  ))}
+                </Stack>
+              )}
+              sx={{ bgcolor: '#fff', borderRadius: 2, fontFamily: 'Roboto Flex, sans-serif', fontSize: 14 }}
+            >
+              {allEndpointKeys.map((key) => (
+                <MenuItem key={key} value={key}>
+                  <Checkbox checked={selectedEndpoints.includes(key)} size="small" />
+                  <ListItemText
+                    primary={ENDPOINTS[key]}
+                    primaryTypographyProps={{ fontSize: 13, fontFamily: 'Roboto Flex, sans-serif' }}
                   />
-                ))}
-              </Stack>
-            )}
-            sx={{
-              bgcolor: '#fff',
-              borderRadius: 2,
-              fontFamily: 'Roboto Flex, sans-serif',
-              fontSize: 14,
-            }}
-          >
-            {allEndpointKeys.map((key) => (
-              <MenuItem key={key} value={key}>
-                <Checkbox checked={selectedEndpoints.includes(key)} size="small" />
-                <ListItemText
-                  primary={ENDPOINTS[key]}
-                  primaryTypographyProps={{ fontSize: 13, fontFamily: 'Roboto Flex, sans-serif' }}
-                />
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <StrataToggle selectedStrata={selectedStrata} onChange={onStrataChange} />
+        </Stack>
       </Stack>
 
       <TableContainer sx={{ mt: 1 }}>
@@ -245,54 +311,17 @@ export default function BaselineSummaryTable({
               const strataColor = STRATA_COLORS[group]?.line;
               const groupStats = statsByStrata[group] || {};
 
-              return [
-                // Strata group header row
-                <TableRow key={`header-${group}`}>
-                  <TableCell
-                    colSpan={6}
-                    sx={{
-                      ...strataHeaderSx,
-                      borderLeft: isOverall ? 'none' : `4px solid ${strataColor || '#999'}`,
-                    }}
-                  >
-                    {group}
-                    {!isOverall && groupStats[selectedEndpoints[0]] && (
-                      <Typography
-                        component="span"
-                        sx={{ fontSize: 12, color: '#888', ml: 1, fontWeight: 400 }}
-                      >
-                        (n={groupStats[selectedEndpoints[0]].n})
-                      </Typography>
-                    )}
-                  </TableCell>
-                </TableRow>,
-                // Endpoint rows for this group
-                ...selectedEndpoints.map((key) => {
-                  const s = groupStats[key];
-                  if (!s) return null;
-                  return (
-                    <TableRow key={`${group}-${key}`} hover>
-                      <TableCell
-                        sx={{
-                          ...cellSx,
-                          fontWeight: 500,
-                          pl: isOverall ? 2 : 4,
-                          borderLeft: isOverall ? 'none' : `4px solid ${strataColor || '#999'}`,
-                        }}
-                      >
-                        {ENDPOINTS[key]}
-                      </TableCell>
-                      <TableCell sx={cellSx} align="right">{s.n}</TableCell>
-                      <TableCell sx={cellSx} align="right">
-                        {fmt(s.mean)} ± {fmt(s.sd)}
-                      </TableCell>
-                      <TableCell sx={cellSx} align="right">{fmt(s.median)}</TableCell>
-                      <TableCell sx={cellSx} align="right">{fmt(s.min)}</TableCell>
-                      <TableCell sx={cellSx} align="right">{fmt(s.max)}</TableCell>
-                    </TableRow>
-                  );
-                }),
-              ];
+              return (
+                <CollapsibleSection
+                  key={group}
+                  group={group}
+                  isOverall={isOverall}
+                  strataColor={strataColor}
+                  groupStats={groupStats}
+                  selectedEndpoints={selectedEndpoints}
+                  defaultOpen={isOverall}
+                />
+              );
             })}
           </TableBody>
         </Table>

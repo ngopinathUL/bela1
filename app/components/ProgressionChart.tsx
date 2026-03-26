@@ -2,18 +2,23 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Paper, Typography, Box, Stack, CircularProgress } from '@mui/material';
+import {
+  Paper, Typography, Box, Stack, CircularProgress,
+  FormControl, InputLabel, Select, MenuItem, SelectChangeEvent,
+} from '@mui/material';
 
 const HighchartsChart = dynamic(() => import('./HighchartsChart'), {
   ssr: false,
   loading: () => (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 370 }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 420 }}>
       <CircularProgress size={32} />
     </div>
   ),
 });
+import StrataToggle from './StrataToggle';
 import {
   RAW_DATA,
+  ENDPOINTS,
   TIME_POINTS,
   TwinRecord,
   dayToMonthLabel,
@@ -29,9 +34,9 @@ import {
 } from '../theme/colors';
 
 interface ProgressionChartProps {
-  endpoint: string;
   subjectIds: string[];
   selectedStrata: string[];
+  onStrataChange: (next: string[]) => void;
 }
 
 function getSubjectStrata(subjectId: string): string {
@@ -119,17 +124,15 @@ function LegendSwatch({
 }
 
 export default function ProgressionChart({
-  endpoint,
   subjectIds,
   selectedStrata,
+  onStrataChange,
 }: ProgressionChartProps) {
+  const [endpoint, setEndpoint] = useState<string>('cuhdrs');
   const [selectedTwin, setSelectedTwin] = useState<string | null>(null);
 
   const filteredIds = useMemo(() => {
-    return subjectIds.filter((id) => {
-      const strata = getSubjectStrata(id);
-      return selectedStrata.includes(strata);
-    });
+    return subjectIds.filter((id) => selectedStrata.includes(getSubjectStrata(id)));
   }, [subjectIds, selectedStrata]);
 
   const { twinSeries, popMean, popBand } = useMemo(
@@ -159,7 +162,6 @@ export default function ProgressionChart({
   const options = useMemo(() => {
     const series: Record<string, unknown>[] = [];
 
-    // Population SD band
     series.push({
       type: 'arearange',
       name: 'Population ± SD',
@@ -172,7 +174,6 @@ export default function ProgressionChart({
       zIndex: 0,
     });
 
-    // Selected twin prediction band
     if (selectedTwin && selectedBand) {
       series.push({
         type: 'arearange',
@@ -187,7 +188,6 @@ export default function ProgressionChart({
       });
     }
 
-    // Individual twin lines — colored by strata
     filteredIds.forEach((id) => {
       const isSelected = selectedTwin === id;
       const hasSel = selectedTwin !== null;
@@ -198,11 +198,7 @@ export default function ProgressionChart({
         type: 'line',
         name: id,
         data: twinSeries[id],
-        color: isSelected
-          ? SELECTED_COLOR
-          : hasSel
-            ? TWIN_LINE_FADED
-            : strataColor,
+        color: isSelected ? SELECTED_COLOR : hasSel ? TWIN_LINE_FADED : strataColor,
         lineWidth: isSelected ? 2.5 : 1.5,
         marker: {
           enabled: isSelected,
@@ -211,33 +207,23 @@ export default function ProgressionChart({
           lineColor: '#fff',
           lineWidth: isSelected ? 2 : 0,
         },
-        states: {
-          hover: {
-            lineWidth: 2.5,
-            lineWidthPlus: 0,
-          },
-        },
+        states: { hover: { lineWidth: 2.5, lineWidthPlus: 0 } },
         zIndex: isSelected ? 4 : 2,
         cursor: 'pointer',
         custom: { strata },
         point: {
           events: {
-            click: function () {
-              handlePointClick(id);
-            },
+            click: function () { handlePointClick(id); },
           },
         },
         events: {
           mouseOver: function () {
-            if (!selectedTwin) {
-              setSelectedTwin(id);
-            }
+            if (!selectedTwin) setSelectedTwin(id);
           },
         },
       });
     });
 
-    // Population mean line
     series.push({
       type: 'line',
       name: 'Population avg',
@@ -259,57 +245,25 @@ export default function ProgressionChart({
         height: 420,
         backgroundColor: charts.backgroundColorInCard,
         style: { fontFamily: 'Roboto Flex, sans-serif' },
-        events: {
-          click: function () {
-            setSelectedTwin(null);
-          },
-        },
+        events: { click: function () { setSelectedTwin(null); } },
       },
       title: { text: undefined },
       credits: { enabled: false },
       legend: { enabled: false },
       xAxis: {
-        title: {
-          text: 'Time',
-          style: {
-            color: '#262626',
-            fontSize: '14px',
-            fontFamily: 'Roboto Flex, sans-serif',
-          },
-        },
+        title: { text: 'Time', style: { color: '#262626', fontSize: '14px', fontFamily: 'Roboto Flex, sans-serif' } },
         tickPositions: TIME_POINTS,
         labels: {
-          formatter: function () {
-            return dayToMonthLabel((this as unknown as { value: number }).value);
-          },
-          style: {
-            color: '#666',
-            fontSize: '12px',
-            fontFamily: 'Roboto Mono, monospace',
-            fontWeight: '500',
-          },
+          formatter: function () { return dayToMonthLabel((this as unknown as { value: number }).value); },
+          style: { color: '#666', fontSize: '12px', fontFamily: 'Roboto Mono, monospace', fontWeight: '500' },
         },
         lineColor: charts.axisLineColor,
         tickColor: charts.axisLineColor,
         gridLineWidth: 0,
       },
       yAxis: {
-        title: {
-          text: 'Change from baseline',
-          style: {
-            color: '#262626',
-            fontSize: '14px',
-            fontFamily: 'Roboto Flex, sans-serif',
-          },
-        },
-        labels: {
-          style: {
-            color: '#666',
-            fontSize: '12px',
-            fontFamily: 'Roboto Mono, monospace',
-            fontWeight: '500',
-          },
-        },
+        title: { text: 'Change from baseline', style: { color: '#262626', fontSize: '14px', fontFamily: 'Roboto Flex, sans-serif' } },
+        labels: { style: { color: '#666', fontSize: '12px', fontFamily: 'Roboto Mono, monospace', fontWeight: '500' } },
         gridLineColor: charts.gridLineColor,
         lineColor: charts.axisLineColor,
         lineWidth: 1,
@@ -320,17 +274,8 @@ export default function ProgressionChart({
         backgroundColor: '#fff',
         borderColor: 'transparent',
         borderRadius: 4,
-        shadow: {
-          color: 'rgba(0,0,0,0.07)',
-          offsetX: 0,
-          offsetY: 1,
-          width: 4,
-        },
-        style: {
-          color: '#666',
-          fontSize: '14px',
-          fontFamily: 'Roboto Flex, sans-serif',
-        },
+        shadow: { color: 'rgba(0,0,0,0.07)', offsetX: 0, offsetY: 1, width: 4 },
+        style: { color: '#666', fontSize: '14px', fontFamily: 'Roboto Flex, sans-serif' },
         formatter: function () {
           const point = this as unknown as { x: number; y: number; series: { name: string; options: { custom?: { strata?: string } } } };
           const day = point.x;
@@ -338,7 +283,6 @@ export default function ProgressionChart({
           const popPt = popMean.find((p) => p[0] === day);
           const strata = point.series.options.custom?.strata;
           const strataColor = strata ? STRATA_COLORS[strata]?.line : SELECTED_COLOR;
-
           let html = `<div style="border-left: 8px solid #A98EF9; padding: 8px 12px;">`;
           html += `<div style="font-weight:600;color:#262626;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #E8E8E8">${label}</div>`;
           if (popPt) {
@@ -355,49 +299,50 @@ export default function ProgressionChart({
           return html;
         },
       },
-      plotOptions: {
-        series: {
-          animation: { duration: 300 },
-          turboThreshold: 0,
-        },
-      },
+      plotOptions: { series: { animation: { duration: 300 }, turboThreshold: 0 } },
       series,
     };
   }, [filteredIds, twinSeries, popMean, popBand, selectedTwin, selectedBand, handlePointClick]);
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 3,
-        flex: 1,
-        minWidth: 0,
-        bgcolor: charts.backgroundColorInCard,
-      }}
-    >
-      <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#262626', mb: 1.5 }}>
-        {filteredIds.length} twins &mdash; Disease progression
-      </Typography>
+    <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: charts.backgroundColorInCard }}>
+      {/* Header row: title + controls */}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        spacing={2}
+        sx={{ mb: 2 }}
+      >
+        <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#262626' }}>
+          {filteredIds.length} twins &mdash; Disease progression
+        </Typography>
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: 'wrap' }}>
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel sx={{ fontFamily: 'Roboto Mono, monospace', fontSize: 12, fontWeight: 500 }}>
+              Endpoint
+            </InputLabel>
+            <Select
+              value={endpoint}
+              label="Endpoint"
+              onChange={(e: SelectChangeEvent) => setEndpoint(e.target.value)}
+              sx={{ bgcolor: '#fff', borderRadius: 2, fontFamily: 'Roboto Flex, sans-serif', fontSize: 14 }}
+            >
+              {Object.entries(ENDPOINTS).map(([key, label]) => (
+                <MenuItem key={key} value={key}>{label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <StrataToggle selectedStrata={selectedStrata} onChange={onStrataChange} />
+        </Stack>
+      </Stack>
 
       {/* Legend */}
       <Stack direction="row" spacing={2.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
-        <LegendSwatch
-          color={POPULATION_COLOR}
-          fill={POPULATION_BAND_COLOR}
-          label="Population ± SD"
-        />
-        <LegendSwatch
-          color={SELECTED_COLOR}
-          fill={SELECTED_BAND_COLOR}
-          label="Selected ± SD"
-        />
+        <LegendSwatch color={POPULATION_COLOR} fill={POPULATION_BAND_COLOR} label="Population ± SD" />
+        <LegendSwatch color={SELECTED_COLOR} fill={SELECTED_BAND_COLOR} label="Selected ± SD" />
         {selectedStrata.map((s) => (
-          <LegendSwatch
-            key={s}
-            color={STRATA_COLORS[s]?.line || '#999'}
-            isDash
-            label={s}
-          />
+          <LegendSwatch key={s} color={STRATA_COLORS[s]?.line || '#999'} isDash label={s} />
         ))}
       </Stack>
 
