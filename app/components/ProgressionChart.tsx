@@ -20,7 +20,6 @@ import {
   charts,
   POPULATION_COLOR,
   POPULATION_BAND_COLOR,
-  TWIN_LINE_FADED,
   STRATA_COLORS,
 } from '../theme/colors';
 
@@ -201,9 +200,9 @@ export default function ProgressionChart({
       if (isHighlighted) {
         bandColor = strataBand.replace(/[\d.]+\)$/, '0.35)');
       } else if (isFocused) {
-        bandColor = 'rgba(200, 200, 200, 0.02)'; // near-invisible in focused mode
+        bandColor = 'rgba(0, 0, 0, 0)'; // invisible bands in focused mode
       } else if (hasHighlights) {
-        bandColor = 'rgba(200, 200, 200, 0.06)';
+        bandColor = 'rgba(200, 200, 200, 0.08)'; // subtle but visible in context
       } else {
         bandColor = strataBand;
       }
@@ -238,10 +237,10 @@ export default function ProgressionChart({
         lineColor = strataColor;
         lineWidth = 3;
       } else if (isFocused) {
-        lineColor = 'rgba(210, 210, 210, 0.25)'; // hairline in focused mode
-        lineWidth = 0.7;
+        lineColor = 'rgba(220, 220, 220, 0.12)'; // ghost hairline in focused
+        lineWidth = 0.5;
       } else if (hasHighlights) {
-        lineColor = TWIN_LINE_FADED;
+        lineColor = 'rgba(180, 180, 180, 0.45)'; // clearly faded but visible in context
         lineWidth = 1;
       } else {
         lineColor = strataColor;
