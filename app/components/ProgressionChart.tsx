@@ -134,7 +134,6 @@ export default function ProgressionChart({
   const [internalEndpoint, setInternalEndpoint] = useState<string>('cuhdrs');
   const [internalViewMode, setInternalViewMode] = useState<'change' | 'absolute'>('change');
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
-  const [showOnlySelected, setShowOnlySelected] = useState(false);
 
   const endpoint = lockedEndpoint || internalEndpoint;
   const viewMode = disabled && lockedViewMode ? lockedViewMode : internalViewMode;
@@ -187,25 +186,20 @@ export default function ProgressionChart({
       zIndex: 0,
     });
 
-    // In focused mode, non-highlighted twins become near-invisible hairlines (not hidden)
-    const isFocused = showOnlySelected && hasHighlights;
+    // Two states:
+    // 1. No highlights: show all twins with strata colors + bands (cohort screening)
+    // 2. Highlights: show only highlighted twins + bands, population SD band is the context
+    const twinsToRender = hasHighlights
+      ? filteredIds.filter((id) => highlighted.has(id))
+      : filteredIds;
 
-    // Per-twin prediction bands
-    filteredIds.forEach((id) => {
-      const isHighlighted = highlighted.has(id);
+    // Twin prediction bands
+    twinsToRender.forEach((id) => {
       const strata = getSubjectStrata(id);
       const strataBand = STRATA_COLORS[strata]?.band || 'rgba(196, 181, 168, 0.15)';
-
-      let bandColor: string;
-      if (isHighlighted) {
-        bandColor = strataBand.replace(/[\d.]+\)$/, '0.35)');
-      } else if (isFocused) {
-        bandColor = 'rgba(0, 0, 0, 0)'; // invisible bands in focused mode
-      } else if (hasHighlights) {
-        bandColor = 'rgba(200, 200, 200, 0.08)'; // subtle but visible in context
-      } else {
-        bandColor = strataBand;
-      }
+      const bandColor = hasHighlights
+        ? strataBand.replace(/[\d.]+\)$/, '0.35)')
+        : strataBand;
 
       if (twinBands[id]) {
         series.push({
@@ -217,54 +211,33 @@ export default function ProgressionChart({
           lineWidth: 0,
           marker: { enabled: false },
           enableMouseTracking: false,
-          zIndex: isHighlighted ? 1 : 0,
+          zIndex: 1,
         });
       }
     });
 
     // Twin lines
-    filteredIds.forEach((id) => {
-      const isHighlighted = highlighted.has(id);
+    twinsToRender.forEach((id) => {
       const strata = getSubjectStrata(id);
       const strataColor = STRATA_COLORS[strata]?.line || '#C4B5A8';
-
-      // Non-highlighted lines: not interactive when highlights exist (no tooltip noise)
-      const isBackground = hasHighlights && !isHighlighted;
-
-      let lineColor: string;
-      let lineWidth: number;
-      if (isHighlighted) {
-        lineColor = strataColor;
-        lineWidth = 3;
-      } else if (isFocused) {
-        lineColor = 'rgba(220, 220, 220, 0.12)'; // ghost hairline in focused
-        lineWidth = 0.5;
-      } else if (hasHighlights) {
-        lineColor = 'rgba(180, 180, 180, 0.45)'; // clearly faded but visible in context
-        lineWidth = 1;
-      } else {
-        lineColor = strataColor;
-        lineWidth = 1.2;
-      }
 
       series.push({
         type: 'line',
         name: id,
         data: twinSeries[id],
-        color: lineColor,
-        lineWidth,
+        color: strataColor,
+        lineWidth: hasHighlights ? 3 : 1.2,
         marker: {
-          enabled: isHighlighted,
+          enabled: hasHighlights,
           symbol: 'circle',
-          radius: isHighlighted ? 5 : 0,
-          fillColor: isHighlighted ? strataColor : undefined,
+          radius: hasHighlights ? 5 : 0,
+          fillColor: hasHighlights ? strataColor : undefined,
           lineColor: '#fff',
-          lineWidth: isHighlighted ? 2 : 0,
+          lineWidth: hasHighlights ? 2 : 0,
         },
-        enableMouseTracking: !isBackground, // disable hover on faded lines
-        states: { hover: { lineWidth: isBackground ? lineWidth : 2.5, lineWidthPlus: 0 } },
-        zIndex: isHighlighted ? 4 : isFocused ? 0 : 2,
-        cursor: isBackground ? 'default' : 'pointer',
+        states: { hover: { lineWidth: 2.5, lineWidthPlus: 0 } },
+        zIndex: 4,
+        cursor: 'pointer',
         custom: { strata },
         point: {
           events: {
@@ -381,7 +354,8 @@ export default function ProgressionChart({
       series,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredIds, twinSeries, popMean, popBand, JSON.stringify([...highlighted]), showOnlySelected, twinBands, yAxisLabel, disabled]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredIds, twinSeries, popMean, popBand, JSON.stringify([...highlighted]), twinBands, yAxisLabel, disabled]);
 
   return (
     <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: charts.backgroundColorInCard }}>
@@ -453,48 +427,27 @@ export default function ProgressionChart({
         </Stack>
       </Stack>
 
-      {/* Subject selector + show-only toggle */}
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5, flexWrap: 'wrap' }}>
-        <Autocomplete
-          multiple
-          value={disabled && lockedSubjects ? lockedSubjects : selectedSubjects}
-          onChange={(_, val) => { if (!disabled) setSelectedSubjects(val); }}
-          options={filteredIds}
-          getOptionLabel={(id) => `${id} (${getSubjectStrata(id)})`}
-          disabled={disabled}
-          size="small"
-          limitTags={3}
-          sx={{ minWidth: 280, flex: 1, maxWidth: 480 }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Subjects"
-              placeholder={highlighted.size === 0 ? 'Select twins to highlight...' : ''}
-              InputLabelProps={{ ...params.InputLabelProps, sx: { fontFamily: 'Roboto Mono, monospace', fontSize: 12, fontWeight: 500 } }}
-              sx={{ '& .MuiInputBase-root': { bgcolor: '#fff', borderRadius: 2, fontFamily: 'Roboto Flex, sans-serif', fontSize: 13 } }}
-            />
-          )}
-        />
-        {hasHighlights && (
-          <ToggleButtonGroup
-            value={showOnlySelected ? 'only' : 'all'}
-            exclusive
-            size="small"
-            onChange={(_, val) => { if (val) setShowOnlySelected(val === 'only'); }}
-            disabled={disabled}
-            sx={{
-              '& .MuiToggleButton-root': {
-                textTransform: 'none', fontSize: 11, fontFamily: 'Roboto Mono, monospace',
-                fontWeight: 500, px: 1.5, py: 0.3, color: '#888', borderColor: '#ddd',
-                '&.Mui-selected': { bgcolor: '#F2F0EB', color: '#262626', fontWeight: 600, borderColor: '#ccc' },
-              },
-            }}
-          >
-            <ToggleButton value="all">Context</ToggleButton>
-            <ToggleButton value="only">Focused</ToggleButton>
-          </ToggleButtonGroup>
+      {/* Subject selector */}
+      <Autocomplete
+        multiple
+        value={disabled && lockedSubjects ? lockedSubjects : selectedSubjects}
+        onChange={(_, val) => { if (!disabled) setSelectedSubjects(val); }}
+        options={filteredIds}
+        getOptionLabel={(id) => `${id} (${getSubjectStrata(id)})`}
+        disabled={disabled}
+        size="small"
+        limitTags={3}
+        sx={{ mb: 1.5, maxWidth: 480 }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Subjects"
+            placeholder={highlighted.size === 0 ? 'Select twins to highlight...' : ''}
+            InputLabelProps={{ ...params.InputLabelProps, sx: { fontFamily: 'Roboto Mono, monospace', fontSize: 12, fontWeight: 500 } }}
+            sx={{ '& .MuiInputBase-root': { bgcolor: '#fff', borderRadius: 2, fontFamily: 'Roboto Flex, sans-serif', fontSize: 13 } }}
+          />
         )}
-      </Stack>
+      />
 
       {/* Legend */}
       <Stack direction="row" spacing={2.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
