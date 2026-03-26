@@ -5,6 +5,7 @@ import {
   Paper, Typography, Box, Stack,
   FormControl, InputLabel, Select, MenuItem, SelectChangeEvent,
   ToggleButtonGroup, ToggleButton,
+  Autocomplete, TextField,
 } from '@mui/material';
 import HighchartsChart from './HighchartsChart';
 import StrataToggle from './StrataToggle';
@@ -31,6 +32,7 @@ interface ProgressionChartProps {
   onStrataChange: (next: string[]) => void;
   lockedEndpoint?: string;
   lockedViewMode?: 'change' | 'absolute';
+  lockedSubject?: string;
   disabled?: boolean;
 }
 
@@ -129,6 +131,7 @@ export default function ProgressionChart({
   onStrataChange,
   lockedEndpoint,
   lockedViewMode,
+  lockedSubject,
   disabled,
 }: ProgressionChartProps) {
   const [internalEndpoint, setInternalEndpoint] = useState<string>('cuhdrs');
@@ -137,6 +140,7 @@ export default function ProgressionChart({
 
   const endpoint = lockedEndpoint || internalEndpoint;
   const viewMode = disabled && lockedViewMode ? lockedViewMode : internalViewMode;
+  const effectiveSelectedTwin = (disabled && lockedSubject) ? lockedSubject : selectedTwin;
 
   const filteredIds = useMemo(() => {
     return subjectIds.filter((id) => selectedStrata.includes(getSubjectStrata(id)));
@@ -192,14 +196,16 @@ export default function ProgressionChart({
 
     // Per-twin prediction bands (always visible, colored by strata)
     filteredIds.forEach((id) => {
-      const isSelected = selectedTwin === id;
-      const hasSel = selectedTwin !== null;
+      const isSelected = effectiveSelectedTwin === id;
+      const hasSel = effectiveSelectedTwin !== null;
       const strata = getSubjectStrata(id);
+      const strataBand = STRATA_COLORS[strata]?.band || 'rgba(196, 181, 168, 0.15)';
+      // Selected: full strata band opacity. Others: fade when something is selected.
       const bandColor = isSelected
-        ? SELECTED_BAND_COLOR
+        ? strataBand.replace(/[\d.]+\)$/, '0.35)')
         : hasSel
-          ? 'rgba(200, 200, 200, 0.08)'
-          : (STRATA_COLORS[strata]?.band || 'rgba(196, 181, 168, 0.15)');
+          ? 'rgba(200, 200, 200, 0.06)'
+          : strataBand;
 
       if (twinBands[id]) {
         series.push({
@@ -217,8 +223,8 @@ export default function ProgressionChart({
     });
 
     filteredIds.forEach((id) => {
-      const isSelected = selectedTwin === id;
-      const hasSel = selectedTwin !== null;
+      const isSelected = effectiveSelectedTwin === id;
+      const hasSel = effectiveSelectedTwin !== null;
       const strata = getSubjectStrata(id);
       const strataColor = STRATA_COLORS[strata]?.line || '#C4B5A8';
 
@@ -226,12 +232,12 @@ export default function ProgressionChart({
         type: 'line',
         name: id,
         data: twinSeries[id],
-        color: isSelected ? SELECTED_COLOR : hasSel ? TWIN_LINE_FADED : strataColor,
-        lineWidth: isSelected ? 2.5 : 1.2,
+        color: isSelected ? strataColor : hasSel ? TWIN_LINE_FADED : strataColor,
+        lineWidth: isSelected ? 3 : 1.2,
         marker: {
           enabled: isSelected,
           radius: isSelected ? 5 : 0,
-          fillColor: isSelected ? SELECTED_COLOR : undefined,
+          fillColor: isSelected ? strataColor : undefined,
           lineColor: '#fff',
           lineWidth: isSelected ? 2 : 0,
         },
@@ -246,7 +252,7 @@ export default function ProgressionChart({
         },
         events: {
           mouseOver: function () {
-            if (!selectedTwin) setSelectedTwin(id);
+            if (!effectiveSelectedTwin) setSelectedTwin(id);
           },
         },
       });
@@ -332,7 +338,7 @@ export default function ProgressionChart({
       plotOptions: { series: { animation: { duration: 300 }, turboThreshold: 0 } },
       series,
     };
-  }, [filteredIds, twinSeries, popMean, popBand, selectedTwin, twinBands, handlePointClick, yAxisLabel]);
+  }, [filteredIds, twinSeries, popMean, popBand, effectiveSelectedTwin, twinBands, handlePointClick, yAxisLabel]);
 
   return (
     <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: charts.backgroundColorInCard }}>
@@ -404,20 +410,37 @@ export default function ProgressionChart({
         </Stack>
       </Stack>
 
-      {/* Legend */}
-      <Stack direction="row" spacing={2.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
+      {/* Subject selector + Legend */}
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1, flexWrap: 'wrap' }}>
+        <Autocomplete
+          value={effectiveSelectedTwin}
+          onChange={(_, val) => { if (!disabled) setSelectedTwin(val); }}
+          options={filteredIds}
+          getOptionLabel={(id) => `${id} (${getSubjectStrata(id)})`}
+          disabled={disabled}
+          size="small"
+          sx={{ minWidth: 200 }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Subject"
+              placeholder="Select a twin..."
+              InputLabelProps={{ ...params.InputLabelProps, sx: { fontFamily: 'Roboto Mono, monospace', fontSize: 12, fontWeight: 500 } }}
+              sx={{ '& .MuiInputBase-root': { bgcolor: '#fff', borderRadius: 2, fontFamily: 'Roboto Flex, sans-serif', fontSize: 13 } }}
+            />
+          )}
+        />
         <LegendSwatch color={POPULATION_COLOR} fill={POPULATION_BAND_COLOR} isDashFill label="Population ± SD" />
-        <LegendSwatch color={SELECTED_COLOR} fill={SELECTED_BAND_COLOR} label="Selected ± SD" />
         {selectedStrata.map((s) => (
-          <LegendSwatch key={s} color={STRATA_COLORS[s]?.line || '#999'} isDash label={s} />
+          <LegendSwatch key={s} color={STRATA_COLORS[s]?.line || '#999'} fill={STRATA_COLORS[s]?.band} label={`${s} ± SD`} />
         ))}
       </Stack>
 
       <HighchartsChart options={options} />
 
       <Typography sx={{ fontSize: 12, color: '#aaa', mt: 1 }}>
-        {selectedTwin
-          ? `${selectedTwin} (${getSubjectStrata(selectedTwin)}) \u2014 showing individual prediction band`
+        {effectiveSelectedTwin
+          ? `${effectiveSelectedTwin} (${getSubjectStrata(effectiveSelectedTwin)}) \u2014 showing individual prediction band`
           : 'Hover a twin line to highlight'}
       </Typography>
     </Paper>

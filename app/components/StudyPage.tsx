@@ -29,6 +29,7 @@ export default function StudyPage() {
   const [lockedChartStrata, setLockedChartStrata] = useState<string[] | null>(null);
   const [lockedTableStrata, setLockedTableStrata] = useState<string[] | null>(null);
   const [lockedViewMode, setLockedViewMode] = useState<'change' | 'absolute' | null>(null);
+  const [lockedSubject, setLockedSubject] = useState<string | null>(null);
 
   const handleActivateInsight = useCallback((insight: Insight) => {
     const b = normalizeBinding(insight.binding);
@@ -37,6 +38,7 @@ export default function StudyPage() {
     setLockedChartStrata(b.chartStrata);
     setLockedTableStrata(b.tableStrata);
     setLockedViewMode(b.viewMode);
+    setLockedSubject(b.subject);
   }, []);
 
   const handleDeactivateInsight = useCallback(() => {
@@ -45,6 +47,7 @@ export default function StudyPage() {
     setLockedChartStrata(null);
     setLockedTableStrata(null);
     setLockedViewMode(null);
+    setLockedSubject(null);
   }, []);
 
   return (
@@ -142,6 +145,7 @@ export default function StudyPage() {
                   lockedChartStrata={lockedChartStrata}
                   lockedTableStrata={lockedTableStrata}
                   lockedViewMode={lockedViewMode}
+                  lockedSubject={lockedSubject}
                 />
               )}
               {activeTab === 1 && (
