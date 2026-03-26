@@ -244,7 +244,7 @@ export default function ProgressionChart({
             click: function () {
               if (!disabled) {
                 setSelectedSubjects((prev) =>
-                  prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+                  prev.includes(id) ? prev.filter((s) => s !== id) : prev.length < 15 ? [...prev, id] : prev
                 );
               }
             },
@@ -431,7 +431,7 @@ export default function ProgressionChart({
       <Autocomplete
         multiple
         value={disabled && lockedSubjects ? lockedSubjects : selectedSubjects}
-        onChange={(_, val) => { if (!disabled) setSelectedSubjects(val); }}
+        onChange={(_, val) => { if (!disabled && val.length <= 15) setSelectedSubjects(val); }}
         options={filteredIds}
         getOptionLabel={(id) => `${id} (${getSubjectStrata(id)})`}
         disabled={disabled}
