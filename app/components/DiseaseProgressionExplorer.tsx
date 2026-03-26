@@ -17,7 +17,7 @@ interface Props {
   lockedChartStrata?: string[] | null;
   lockedTableStrata?: string[] | null;
   lockedViewMode?: 'change' | 'absolute' | null;
-  lockedSubject?: string | null;
+  lockedSubjects?: string[] | null;
 }
 
 export default function DiseaseProgressionExplorer({
@@ -25,7 +25,7 @@ export default function DiseaseProgressionExplorer({
   lockedChartStrata,
   lockedTableStrata,
   lockedViewMode,
-  lockedSubject,
+  lockedSubjects,
 }: Props) {
   const [chartStrata, setChartStrata] = useState<string[]>([...STRATA]);
   const [tableStrata, setTableStrata] = useState<string[]>([...STRATA]);
@@ -58,7 +58,7 @@ export default function DiseaseProgressionExplorer({
         onStrataChange={isLocked ? () => {} : setChartStrata}
         lockedEndpoint={lockedEndpoint || undefined}
         lockedViewMode={lockedViewMode || undefined}
-        lockedSubject={lockedSubject || undefined}
+        lockedSubjects={lockedSubjects || undefined}
         disabled={isLocked}
       />
 

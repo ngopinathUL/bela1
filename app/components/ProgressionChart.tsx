@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Paper, Typography, Box, Stack,
   FormControl, InputLabel, Select, MenuItem, SelectChangeEvent,
@@ -32,7 +32,7 @@ interface ProgressionChartProps {
   onStrataChange: (next: string[]) => void;
   lockedEndpoint?: string;
   lockedViewMode?: 'change' | 'absolute';
-  lockedSubject?: string;
+  lockedSubjects?: string[];
   disabled?: boolean;
 }
 
@@ -131,16 +131,18 @@ export default function ProgressionChart({
   onStrataChange,
   lockedEndpoint,
   lockedViewMode,
-  lockedSubject,
+  lockedSubjects,
   disabled,
 }: ProgressionChartProps) {
   const [internalEndpoint, setInternalEndpoint] = useState<string>('cuhdrs');
   const [internalViewMode, setInternalViewMode] = useState<'change' | 'absolute'>('change');
-  const [selectedTwin, setSelectedTwin] = useState<string | null>(null);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
 
   const endpoint = lockedEndpoint || internalEndpoint;
   const viewMode = disabled && lockedViewMode ? lockedViewMode : internalViewMode;
-  const effectiveSelectedTwin = (disabled && lockedSubject) ? lockedSubject : selectedTwin;
+  const highlighted = (disabled && lockedSubjects) ? new Set(lockedSubjects) : new Set(selectedSubjects);
+  const hasHighlights = highlighted.size > 0;
 
   const filteredIds = useMemo(() => {
     return subjectIds.filter((id) => selectedStrata.includes(getSubjectStrata(id)));
@@ -168,12 +170,6 @@ export default function ProgressionChart({
     return bands;
   }, [filteredIds, twinSeries, popBand]);
 
-  const handlePointClick = useCallback(
-    (twinId: string) => {
-      setSelectedTwin((prev) => (prev === twinId ? null : twinId));
-    },
-    [],
-  );
 
   const yAxisLabel = viewMode === 'absolute'
     ? `${ENDPOINTS[endpoint]}`
@@ -194,16 +190,19 @@ export default function ProgressionChart({
       zIndex: 0,
     });
 
-    // Per-twin prediction bands (always visible, colored by strata)
-    filteredIds.forEach((id) => {
-      const isSelected = effectiveSelectedTwin === id;
-      const hasSel = effectiveSelectedTwin !== null;
+    // Determine which IDs to render (all, or only highlighted if toggle is on)
+    const visibleIds = (showOnlySelected && hasHighlights)
+      ? filteredIds.filter((id) => highlighted.has(id))
+      : filteredIds;
+
+    // Per-twin prediction bands
+    visibleIds.forEach((id) => {
+      const isHighlighted = highlighted.has(id);
       const strata = getSubjectStrata(id);
       const strataBand = STRATA_COLORS[strata]?.band || 'rgba(196, 181, 168, 0.15)';
-      // Selected: full strata band opacity. Others: fade when something is selected.
-      const bandColor = isSelected
+      const bandColor = isHighlighted
         ? strataBand.replace(/[\d.]+\)$/, '0.35)')
-        : hasSel
+        : hasHighlights
           ? 'rgba(200, 200, 200, 0.06)'
           : strataBand;
 
@@ -217,14 +216,13 @@ export default function ProgressionChart({
           lineWidth: 0,
           marker: { enabled: false },
           enableMouseTracking: false,
-          zIndex: isSelected ? 1 : 0,
+          zIndex: isHighlighted ? 1 : 0,
         });
       }
     });
 
-    filteredIds.forEach((id) => {
-      const isSelected = effectiveSelectedTwin === id;
-      const hasSel = effectiveSelectedTwin !== null;
+    visibleIds.forEach((id) => {
+      const isHighlighted = highlighted.has(id);
       const strata = getSubjectStrata(id);
       const strataColor = STRATA_COLORS[strata]?.line || '#C4B5A8';
 
@@ -232,28 +230,32 @@ export default function ProgressionChart({
         type: 'line',
         name: id,
         data: twinSeries[id],
-        color: isSelected ? strataColor : hasSel ? TWIN_LINE_FADED : strataColor,
-        lineWidth: isSelected ? 3 : 1.2,
+        color: isHighlighted ? strataColor : hasHighlights ? TWIN_LINE_FADED : strataColor,
+        lineWidth: isHighlighted ? 3 : 1.2,
         marker: {
-          enabled: isSelected,
-          radius: isSelected ? 5 : 0,
-          fillColor: isSelected ? strataColor : undefined,
+          enabled: isHighlighted,
+          radius: isHighlighted ? 5 : 0,
+          fillColor: isHighlighted ? strataColor : undefined,
           lineColor: '#fff',
-          lineWidth: isSelected ? 2 : 0,
+          lineWidth: isHighlighted ? 2 : 0,
         },
         states: { hover: { lineWidth: 2.5, lineWidthPlus: 0 } },
-        zIndex: isSelected ? 4 : 2,
+        zIndex: isHighlighted ? 4 : 2,
         cursor: 'pointer',
         custom: { strata },
         point: {
           events: {
-            click: function () { handlePointClick(id); },
+            click: function () {
+              if (!disabled) {
+                setSelectedSubjects((prev) =>
+                  prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+                );
+              }
+            },
           },
         },
         events: {
-          mouseOver: function () {
-            if (!effectiveSelectedTwin) setSelectedTwin(id);
-          },
+          mouseOver: function () {},
         },
       });
     });
@@ -281,7 +283,7 @@ export default function ProgressionChart({
         height: 420,
         backgroundColor: charts.backgroundColorInCard,
         style: { fontFamily: 'Roboto Flex, sans-serif' },
-        events: { click: function () { setSelectedTwin(null); } },
+        events: { click: function () { if (!disabled) setSelectedSubjects([]); } },
       },
       title: { text: undefined },
       credits: { enabled: false },
@@ -338,7 +340,8 @@ export default function ProgressionChart({
       plotOptions: { series: { animation: { duration: 300 }, turboThreshold: 0 } },
       series,
     };
-  }, [filteredIds, twinSeries, popMean, popBand, effectiveSelectedTwin, twinBands, handlePointClick, yAxisLabel]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredIds, twinSeries, popMean, popBand, JSON.stringify([...highlighted]), showOnlySelected, twinBands, yAxisLabel, disabled]);
 
   return (
     <Paper elevation={0} sx={{ p: 3, mb: 3, bgcolor: charts.backgroundColorInCard }}>
@@ -410,26 +413,51 @@ export default function ProgressionChart({
         </Stack>
       </Stack>
 
-      {/* Subject selector + Legend */}
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1, flexWrap: 'wrap' }}>
+      {/* Subject selector + show-only toggle */}
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1.5, flexWrap: 'wrap' }}>
         <Autocomplete
-          value={effectiveSelectedTwin}
-          onChange={(_, val) => { if (!disabled) setSelectedTwin(val); }}
+          multiple
+          value={disabled && lockedSubjects ? lockedSubjects : selectedSubjects}
+          onChange={(_, val) => { if (!disabled) setSelectedSubjects(val); }}
           options={filteredIds}
           getOptionLabel={(id) => `${id} (${getSubjectStrata(id)})`}
           disabled={disabled}
           size="small"
-          sx={{ minWidth: 200 }}
+          limitTags={3}
+          sx={{ minWidth: 280, flex: 1, maxWidth: 480 }}
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Subject"
-              placeholder="Select a twin..."
+              label="Subjects"
+              placeholder={highlighted.size === 0 ? 'Select twins to highlight...' : ''}
               InputLabelProps={{ ...params.InputLabelProps, sx: { fontFamily: 'Roboto Mono, monospace', fontSize: 12, fontWeight: 500 } }}
               sx={{ '& .MuiInputBase-root': { bgcolor: '#fff', borderRadius: 2, fontFamily: 'Roboto Flex, sans-serif', fontSize: 13 } }}
             />
           )}
         />
+        {hasHighlights && (
+          <ToggleButtonGroup
+            value={showOnlySelected ? 'only' : 'all'}
+            exclusive
+            size="small"
+            onChange={(_, val) => { if (val) setShowOnlySelected(val === 'only'); }}
+            disabled={disabled}
+            sx={{
+              '& .MuiToggleButton-root': {
+                textTransform: 'none', fontSize: 11, fontFamily: 'Roboto Mono, monospace',
+                fontWeight: 500, px: 1.5, py: 0.3, color: '#888', borderColor: '#ddd',
+                '&.Mui-selected': { bgcolor: '#F2F0EB', color: '#262626', fontWeight: 600, borderColor: '#ccc' },
+              },
+            }}
+          >
+            <ToggleButton value="all">Show all</ToggleButton>
+            <ToggleButton value="only">Selected only</ToggleButton>
+          </ToggleButtonGroup>
+        )}
+      </Stack>
+
+      {/* Legend */}
+      <Stack direction="row" spacing={2.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
         <LegendSwatch color={POPULATION_COLOR} fill={POPULATION_BAND_COLOR} isDashFill label="Population ± SD" />
         {selectedStrata.map((s) => (
           <LegendSwatch key={s} color={STRATA_COLORS[s]?.line || '#999'} fill={STRATA_COLORS[s]?.band} label={`${s} ± SD`} />
@@ -439,9 +467,9 @@ export default function ProgressionChart({
       <HighchartsChart options={options} />
 
       <Typography sx={{ fontSize: 12, color: '#aaa', mt: 1 }}>
-        {effectiveSelectedTwin
-          ? `${effectiveSelectedTwin} (${getSubjectStrata(effectiveSelectedTwin)}) \u2014 showing individual prediction band`
-          : 'Hover a twin line to highlight'}
+        {hasHighlights
+          ? `${[...highlighted].join(', ')} highlighted \u2014 click lines or use selector above`
+          : 'Click a twin line or use the subject selector to highlight'}
       </Typography>
     </Paper>
   );

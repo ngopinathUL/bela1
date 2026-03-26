@@ -6,8 +6,8 @@ export interface InsightBinding {
   table_strata?: string[];
   /** "change" (default) or "absolute" — controls y-axis mode */
   view_mode?: 'change' | 'absolute';
-  /** Optional: pre-select a specific subject in the chart */
-  subject?: string;
+  /** Optional: pre-select specific subjects in the chart */
+  subjects?: string[];
 }
 
 export interface Insight {
@@ -48,6 +48,6 @@ export function normalizeBinding(binding: InsightBinding) {
     chartStrata: binding.chart_strata,
     tableStrata: binding.table_strata || binding.chart_strata,
     viewMode: (binding.view_mode || 'change') as 'change' | 'absolute',
-    subject: binding.subject || null,
+    subjects: binding.subjects || null,
   };
 }
